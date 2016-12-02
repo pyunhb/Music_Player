@@ -9,128 +9,134 @@
 #pragma comment(linker,"\"/manifestdependency:type='win32' \
 name='Microsoft.Windows.Common-Controls' version='6.0.0.0' \
 processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
-	using namespace std;
+using namespace std;
 /*매크로*/
-	#define SONGNAME 1			//레이블
-	#define PLAYINGLABEL 2	
-	#define TOTALLABEL 3	
-	#define SEPERATINGLABEL 4	
-	#define PLAYBUTTON 101		//버튼
-	#define STOPBUTTON 102		
-	#define PAUSEBUTTON 103		
-	#define ADDBUTTON 104
-	#define EXITBUTTON 105
-	#define DELETEBUTTON 106
-	#define VOLUMEBAR 200		//트랙바
-	#define PLAYINGBAR 201
-	#define MUSICLIST 300		//리스트박스
-	#define REPEATCHECK 400		//체크박스
-	#define SEQUENTIALCHECK 401
+#define SONGNAME 1			//레이블
+#define PLAYINGLABEL 2	
+#define TOTALLABEL 3	
+#define SEPERATINGLABEL 4	
+#define PLAYBUTTON 101		//버튼
+#define STOPBUTTON 102		
+#define PAUSEBUTTON 103		
+#define ADDBUTTON 104
+#define EXITBUTTON 105
+#define DELETEBUTTON 106
+#define VOLUMEBAR 200		//트랙바
+#define PLAYINGBAR 201
+#define MUSICLIST 300		//리스트박스	
+#define REPEATCHECK 400		//체크박스
+#define SEQUENTIALCHECK 401
 /*전역 변수*/
-	HWND hWnd;					//부모윈도우
-	HWND songname;				//레이블
-	HWND Playing_label;
-	HWND total_label;
-	HWND seperating_label;
-	HWND play_button;			//버튼
-	HWND stop_button;
-	HWND pause_button;
-	HWND ADD_button;
-	HWND delete_button;
-	HWND exit_button;
-	HWND Volume_bar;			//트랙바
-	HWND playing_bar;
-	HWND music_list;			//리스트박스
-	HWND repeat_check;
-	HWND sequential_check;
+HWND hWnd;					//부모윈도우
+HWND songname;				//레이블
+HWND Playing_label;
+HWND total_label;
+HWND seperating_label;
+HWND play_button;			//버튼
+HWND stop_button;
+HWND pause_button;
+HWND ADD_button;
+HWND delete_button;
+HWND exit_button;
+HWND Volume_bar;			//트랙바
+HWND playing_bar;
+HWND music_list;			//리스트박스
+HWND repeat_check;
+HWND sequential_check;
 
-	MP3* mp3 = new MP3;			//MUSIC PLAYER 클래스
-	HINSTANCE g_hInst;
-	INT list_index, playing_index; //인덱스
-/*함수 선언*/
-	vector<wstring>* openFile(HWND hWnd);
-	LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
-	VOID Music_insert(MP3* mp3);
-	VOID Music_delete();
-	VOID CreateButton(HWND hWnd);
-	VOID Ready();
-	VOID Play();
-	VOID Stop();
+MP3* mp3 = new MP3;			//MUSIC PLAYER 클래스
+HINSTANCE g_hInst;
+INT list_index, playing_index; //인덱스
+							   /*함수 선언*/
+vector<wstring>* openFile(HWND hWnd);
+LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+VOID Music_insert(MP3* mp3);
+VOID Music_delete();
+VOID CreateButton(HWND hWnd);
+VOID Ready();
+VOID Play();
+VOID Stop();
 
 vector<wstring>* openFile(HWND hWnd) {
-		HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
-		COMDLG_FILTERSPEC rgSpec[] = { { L"mp3", L"*.mp3" },{L"wav", L"*.wav"},{L"all files",L"*.*"} };
+	HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+	COMDLG_FILTERSPEC rgSpec[] = { { L"mp3", L"*.mp3" },{ L"wav", L"*.wav" },{ L"all files",L"*.*" } };
+	if (SUCCEEDED(hr)) {
+		IFileOpenDialog *pFileOpen;
+		hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL, IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen));
 		if (SUCCEEDED(hr)) {
-			IFileOpenDialog *pFileOpen;
-			hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL, IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen));
+			hr = pFileOpen->SetOptions(FOS_ALLOWMULTISELECT);
+			hr = pFileOpen->SetFileTypes(3, rgSpec);
+			hr = pFileOpen->Show(hWnd);
 			if (SUCCEEDED(hr)) {
-				hr = pFileOpen->SetOptions(FOS_ALLOWMULTISELECT);
-				hr = pFileOpen->SetFileTypes(3, rgSpec);
-				hr = pFileOpen->Show(hWnd);
+				IShellItemArray *psiaResult;
+				hr = pFileOpen->GetResults(&psiaResult);
 				if (SUCCEEDED(hr)) {
-					IShellItemArray *psiaResult;
-					hr = pFileOpen->GetResults(&psiaResult);
-					if (SUCCEEDED(hr)) {
-						
-						DWORD dwNumItems = 0;
-						vector<wstring> *strSelected = new vector<wstring>;
-						hr = psiaResult->GetCount(&dwNumItems);
-						for (DWORD i = 0; i < dwNumItems; i++) {
-							IShellItem *psi = NULL;
-							LPWSTR pszFilePath;
-							hr = psiaResult->GetItemAt(i, &psi);
-							hr = psi->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
-							if (SUCCEEDED(hr)) {
-								strSelected->push_back(pszFilePath);
-								CoTaskMemFree(pszFilePath);
-							}
+
+					DWORD dwNumItems = 0;
+					vector<wstring> *strSelected = new vector<wstring>;
+					hr = psiaResult->GetCount(&dwNumItems);
+					for (DWORD i = 0; i < dwNumItems; i++) {
+						IShellItem *psi = NULL;
+						LPWSTR pszFilePath;
+						hr = psiaResult->GetItemAt(i, &psi);
+						hr = psi->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
+						if (SUCCEEDED(hr)) {
+							strSelected->push_back(pszFilePath);
+							CoTaskMemFree(pszFilePath);
 						}
-						return strSelected;
 					}
+					return strSelected;
 				}
-				pFileOpen->Release();
 			}
-			CoUninitialize();
+			pFileOpen->Release();
 		}
-		vector<wstring> none;
-		return &none;
+		CoUninitialize();
+	}
+	return NULL;
 }
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
-	static HANDLE timer;
+	static HANDLE timer, showtimer;
+	static int xClick;
+	static int yClick;
 	switch (message) {
 	case WM_COMMAND: {
-		if (((HWND)lParam) && (HIWORD(wParam) == BN_CLICKED))
+		if (((HWND)lParam) && (HIWORD(wParam) == BN_CLICKED)) {
+			KillTimer(hWnd, 2);
+			showtimer = (HANDLE)SetTimer(hWnd, 2, 5000, NULL);
 			switch (LOWORD(wParam)) {
-				case PLAYBUTTON: {
-					Play();
-					break;
-					}
-				case STOPBUTTON: {
-					Stop();
-					break;
-				}
-				case PAUSEBUTTON: {
-					mp3->pause();
-					break;
-				}
-				case ADDBUTTON: {
-					Music_insert(mp3);
-					break;
-				}
-				case DELETEBUTTON: {
-					list_index = SendMessage(music_list, LB_GETCURSEL, 0, 0);
-					Music_delete();
-					break;
-				}
-				case EXITBUTTON: {
-					SendMessage(hWnd, WM_DESTROY, 0, 0);
-					break;
-				}
-				default:		break;
+			case PLAYBUTTON: {
+				Play();
+				break;
 			}
+			case STOPBUTTON: {
+				Stop();
+				break;
+			}
+			case PAUSEBUTTON: {
+				mp3->pause();
+				break;
+			}
+			case ADDBUTTON: {
+				Music_insert(mp3);
+				break;
+			}
+			case DELETEBUTTON: {
+				list_index = SendMessage(music_list, LB_GETCURSEL, 0, 0);
+				Music_delete();
+				break;
+			}
+			case EXITBUTTON: {
+				SendMessage(hWnd, WM_DESTROY, 0, 0);
+				break;
+			}
+			default:		break;
+			}
+		}
 		else if ((HWND)lParam == music_list) {
+			KillTimer(hWnd, 2);
+			showtimer = (HANDLE)SetTimer(hWnd, 2, 5000, NULL);
 			switch (LOWORD(wParam)) {
-				case MUSICLIST: {
+			case MUSICLIST: {
 				switch (HIWORD(wParam)) {
 				case LBN_SELCHANGE:
 					list_index = SendMessage(music_list, LB_GETCURSEL, 0, 0); //포커싱 인덱스 호출
@@ -140,23 +146,70 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 					Play();
 					break;
 				}
-				
+
 
 			}
-				default: break;
+			default: break;
 			}
 		}
 		break;
 	}
+	case WM_LBUTTONDOWN: {
+		KillTimer(hWnd, 2);
+		showtimer = (HANDLE)SetTimer(hWnd, 2, 5000, NULL);
+		SetCapture(hWnd);
+		xClick = LOWORD(lParam);
+		yClick = HIWORD(lParam);
+		break;
+	}
+	case WM_MOUSEMOVE: {
+		if (GetCapture() == hWnd)
+		{
+			RECT rcWindow, rcScreen;
+			POINT point;
+			GetWindowRect(hWnd, &rcWindow);
+			GetWindowRect(GetDesktopWindow(), &rcScreen);
+			GetCursorPos(&point);
+
+			int xMouse = LOWORD(lParam);
+			int yMouse = HIWORD(lParam);
+			int xWindow = point.x - xClick;;
+			int yWindow = point.y - yClick;;
+			if (xWindow - 5 <= 0) xWindow = 5;
+			else if (xWindow + 282 >= rcScreen.right) xWindow = rcScreen.right - 282;
+			if (yWindow <= 0) yWindow = 0;
+			else if (yWindow + 61 >= rcScreen.bottom) yWindow = rcScreen.bottom - 61;
+			MoveWindow(hWnd, xWindow - 7, yWindow - 7, 295, 210, TRUE);
+		}
+		break;
+	}
+	case WM_LBUTTONUP: {
+		ReleaseCapture();
+		break;
+	}
+	case WM_SETFOCUS: {
+		RECT rcWindow;
+		KillTimer(hWnd, 2);
+		GetWindowRect(hWnd, &rcWindow);
+		MoveWindow(hWnd, rcWindow.left, rcWindow.top, 295, 210, TRUE);
+		break;
+	}
+	case WM_KILLFOCUS: {
+		showtimer = (HANDLE)SetTimer(hWnd, 2, 5000, NULL);
+
+		break;
+	}
 	case WM_HSCROLL: {
 		if ((HWND)lParam == Volume_bar) {
+			KillTimer(hWnd, 2);
+			showtimer = (HANDLE)SetTimer(hWnd, 2, 5000, NULL);
 			DWORD vol_pos = SendMessage(Volume_bar, TBM_GETPOS, 0, 0);	//볼륨 컨트롤 -> 값 가져오기
 			mp3->setVolume(vol_pos);									//볼륨 설정
 		}
 		if ((HWND)lParam == playing_bar) {
 			if (mp3->isPlaying()) {
 				mp3->stop();
-				DWORD pln_pos = SendMessage(playing_bar, TBM_GETPOS, 0, 0); 
+				DWORD pln_pos = SendMessage(playing_bar, TBM_GETPOS, 0, 0);
 				mp3->setPlayingtime(pln_pos * 1000);
 				mp3->play();
 			}
@@ -165,7 +218,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 				DWORD pln_pos = SendMessage(playing_bar, TBM_GETPOS, 0, 0);
 				mp3->setPlayingtime(pln_pos * 1000);
 			}
-			else{
+			else {
 				DWORD pln_pos = SendMessage(playing_bar, TBM_GETPOS, 0, 0);
 				mp3->setPlayingtime(pln_pos * 1000);
 			}
@@ -180,33 +233,45 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 	case WM_CREATE: {
 		CreateButton(hWnd); //버튼 생성 함수
 		timer = (HANDLE)SetTimer(hWnd, 1, 100, NULL);
-		break;}
-	case WM_TIMER: {
-		if (mp3->isPlaying()) {
-			SetWindowText(Playing_label, mp3->getTimeFormat(mp3->GetPlayingtime()));
-			SendMessage(playing_bar, TBM_SETPOS, TRUE, mp3->GetPlayingtime() / 1000);
-		}
-		if (mp3->GetPlayingtime() == mp3->getSongLength()) {
-			mp3->stop();
-			SendMessage(playing_bar, TBM_SETPOS, TRUE, 0);
-			SetWindowText(Playing_label, mp3->getTimeFormat(mp3->GetPlayingtime()));
-			if (SendMessage(repeat_check, BM_GETCHECK, 0, 0) == BST_CHECKED) 			//반복 체크
-				if (SendMessage(sequential_check, BM_GETCHECK, 0, 0) == BST_CHECKED) {		//순차 체크
-					list_index = (playing_index + 1)%mp3->get_vector_size();
-					SendMessage(music_list, LB_SETCURSEL, list_index, NULL);
-					Play();
-				}
-				else mp3->play();															//순차 비체크
-			else {																		//반복 비체크
-				if (SendMessage(sequential_check, BM_GETCHECK, 0, 0) == BST_CHECKED)		//순차 체크
-					if ((playing_index + 1) != mp3->get_vector_size()) {					//마지막인지 체크
-						list_index = (playing_index + 1);
-						SendMessage(music_list, LB_SETCURSEL, list_index, NULL);
-						Play();
-					}
-			}
-		}
 		break; }
+	case WM_TIMER: {
+		switch (wParam) {
+		case 1: {
+			if (mp3->isPlaying()) {
+				SetWindowText(Playing_label, mp3->getTimeFormat(mp3->GetPlayingtime()));
+				SendMessage(playing_bar, TBM_SETPOS, TRUE, mp3->GetPlayingtime() / 1000);
+				if (mp3->GetPlayingtime() == mp3->getSongLength()) {
+					mp3->stop();
+					SendMessage(playing_bar, TBM_SETPOS, TRUE, 0);
+					SetWindowText(Playing_label, mp3->getTimeFormat(mp3->GetPlayingtime()));
+					if (SendMessage(repeat_check, BM_GETCHECK, 0, 0) == BST_CHECKED) 			//반복 체크
+						if (SendMessage(sequential_check, BM_GETCHECK, 0, 0) == BST_CHECKED) {		//순차 체크
+							list_index = (playing_index + 1) % mp3->get_vector_size();
+							SendMessage(music_list, LB_SETCURSEL, list_index, NULL);
+							Play();
+						}
+						else mp3->play();															//순차 비체크
+					else {																		//반복 비체크
+						if (SendMessage(sequential_check, BM_GETCHECK, 0, 0) == BST_CHECKED)		//순차 체크
+							if ((playing_index + 1) != mp3->get_vector_size()) {					//마지막인지 체크
+								list_index = (playing_index + 1);
+								SendMessage(music_list, LB_SETCURSEL, list_index, NULL);
+								Play();
+							}
+					}
+				}
+			}
+			break;
+		}
+		case 2: {
+			RECT rcWindow;
+			GetWindowRect(hWnd, &rcWindow);
+			MoveWindow(hWnd, rcWindow.left, rcWindow.top, 295, 75, TRUE);
+			break;
+		}
+		}
+		break;
+	}
 	default: return DefWindowProc(hWnd, message, wParam, lParam);
 	}
 }
@@ -218,9 +283,9 @@ void refresh_listbox() {
 void Music_insert(MP3* mp3) {
 	CString path;
 	vector<wstring> *vec_tor = openFile(hWnd);
-	for (unsigned int count = 0; count < vec_tor->size();count++) {
+	if (!vec_tor) return;
+	for (unsigned int count = 0; count < vec_tor->size(); count++) {
 		path = vec_tor->at(count).c_str();
-		if (path == L"") return;
 		path.Replace(L"\\", L"/");
 		for (int count = 0; count < mp3->get_vector_size(); count++)
 			if (mp3->get_vector_item(count).path == path) {
@@ -234,7 +299,7 @@ void Music_insert(MP3* mp3) {
 	}
 }
 void Music_delete() {
-	if (mp3->get_vector_size() >= 1){
+	if (mp3->get_vector_size() >= 1) {
 		if (mp3->getPath() == mp3->get_vector_item(list_index).path) {
 			mp3->stop();
 			mp3->Close();
@@ -247,8 +312,8 @@ void Music_delete() {
 }
 void Ready() {
 	mp3->stop();
-	if(mp3->getFlag())mp3->Close();
-	if(mp3->get_vector_size() == 0) return;
+	if (mp3->getFlag())mp3->Close();
+	if (mp3->get_vector_size() == 0) return;
 	mp3->setPath(list_index);
 	mp3->Load();
 	SendMessage(playing_bar, TBM_SETRANGE, TRUE, MAKELONG(0, mp3->getSongLength() / 1000));
@@ -285,7 +350,7 @@ void CreateButton(HWND hWnd) {
 		(HMENU)SONGNAME,											//Songname
 		g_hInst,													//인스턴스
 		NULL);														//?
-	/* 시간 레이블*/
+																	/* 시간 레이블*/
 	Playing_label = CreateWindowEx(0,					//확장 가능성
 		TEXT("static"),												//분류 : 트랙바
 		TEXT("00:00"),													//텍스트
@@ -316,11 +381,11 @@ void CreateButton(HWND hWnd) {
 		(HMENU)TOTALLABEL,											//total
 		g_hInst,													//인스턴스
 		NULL);														//?
-	/*재생 트랙바*/
+																	/*재생 트랙바*/
 	playing_bar = CreateWindowEx(0,									//확장 가능성
 		TRACKBAR_CLASS,												//분류 : 트랙바
 		NULL,														//
-		WS_CHILD | WS_VISIBLE | TBS_AUTOTICKS | TBS_ENABLESELRANGE,	//
+		WS_CHILD | WS_VISIBLE | TBS_AUTOTICKS | TBS_ENABLESELRANGE | TBS_NOTICKS,	//
 		0, 40,														//위치
 		280, 20,													//사이즈
 		hWnd,														//부모 : hWnd
@@ -340,7 +405,7 @@ void CreateButton(HWND hWnd) {
 		(HMENU)PLAYBUTTON,											//PLAY
 		g_hInst,													//인스턴스
 		NULL);														//?
-	/*일시정지 버튼*/
+																	/*일시정지 버튼*/
 	pause_button = CreateWindowEx(0,								//확장 가능성
 		TEXT("BUTTON"),												//분류 : 버튼
 		TEXT("Pause"),													//버튼 텍스트
@@ -351,7 +416,7 @@ void CreateButton(HWND hWnd) {
 		(HMENU)PAUSEBUTTON,											//PAUSE
 		g_hInst,													//인스턴스
 		NULL);														//?
-	/*중지 버튼*/
+																	/*중지 버튼*/
 	HWND stop_button = CreateWindowEx(0,							//확장 가능성
 		TEXT("BUTTON"),												//분류 : 버튼
 		TEXT("Stop"),													//버튼 텍스트
@@ -362,11 +427,11 @@ void CreateButton(HWND hWnd) {
 		(HMENU)STOPBUTTON,											//STOP
 		g_hInst,													//인스턴스
 		NULL);														//?
-	/*볼륨 트랙바*/
+																	/*볼륨 트랙바*/
 	Volume_bar = CreateWindowEx(0,									//확장 가능성
 		TRACKBAR_CLASS,												//분류 : 트랙바
 		NULL,														//
-		WS_CHILD | WS_VISIBLE | TBS_AUTOTICKS | TBS_ENABLESELRANGE,	//
+		WS_CHILD | WS_VISIBLE | TBS_AUTOTICKS | TBS_ENABLESELRANGE | TBS_NOTICKS,	//
 		180, 60,														//위치
 		100, 20,													//사이즈
 		hWnd,														//부모 : hWnd
@@ -385,7 +450,7 @@ void CreateButton(HWND hWnd) {
 		(HMENU)MUSICLIST,											//PAUSE
 		g_hInst,													//인스턴스
 		NULL);														//?
-	/*곡 추가 버튼*/
+																	/*곡 추가 버튼*/
 	ADD_button = CreateWindowEx(0,									//확장 가능성
 		TEXT("BUTTON"),												//분류 : 버튼
 		TEXT("Add"),												//버튼 텍스트
@@ -396,7 +461,7 @@ void CreateButton(HWND hWnd) {
 		(HMENU)ADDBUTTON,											//PAUSE
 		g_hInst,													//인스턴스
 		NULL);														//?
-	/*곡 삭제 버튼*/
+																	/*곡 삭제 버튼*/
 	delete_button = CreateWindowEx(0,									//확장 가능성
 		TEXT("BUTTON"),												//분류 : 버튼
 		TEXT("Del"),												//버튼 텍스트
@@ -407,7 +472,7 @@ void CreateButton(HWND hWnd) {
 		(HMENU)DELETEBUTTON,											//PAUSE
 		g_hInst,													//인스턴스
 		NULL);														//?
-	/*체크박스*/
+																	/*체크박스*/
 	repeat_check = CreateWindowEx(0,
 		TEXT("button"),
 		TEXT("Repeat"),
@@ -440,8 +505,8 @@ void CreateButton(HWND hWnd) {
 		g_hInst,													//인스턴스
 		NULL);														//?
 }
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow){
-													/* 윈도우를 위한 처리기 */
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
+	/* 윈도우를 위한 처리기 */
 	MSG msg;													/* 프로그램에 전송된 메시지가 저장 */
 	WNDCLASSEX wcex;											/* windowclass를 위한 자료 구조체 */
 	TCHAR szClassName[] = TEXT("MyFirstProgram");
@@ -456,23 +521,23 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	wcex.lpszClassName = szClassName;
 	wcex.lpfnWndProc = WndProc;									/* 이 함수는 윈도우에 의해 호출됩니다 */
 	wcex.style = CS_DBLCLKS;									/* 더블 클릭을 잡아냄 */
-	wcex.cbSize = sizeof(WNDCLASSEX);		
+	wcex.cbSize = sizeof(WNDCLASSEX);
 	wcex.hIcon = LoadIcon(NULL, IDI_APPLICATION);				/* 기본 아이콘과 포인터 사용 */
 	wcex.hIconSm = LoadIcon(NULL, IDI_APPLICATION);
 	wcex.hCursor = LoadCursor(NULL, IDC_ARROW);
 	wcex.lpszMenuName = NULL;									/* 메뉴 사용안함 */
 	wcex.cbClsExtra = 0;										/* 윈도우 클래스 뒤에 여우 바이트 없음 */
 	wcex.cbWndExtra = 0;										/* 윈도우 인스턴스 또는 구조체 */
-	wcex.hbrBackground = (HBRUSH)(COLOR_BTNFACE+1);			// 창의 배경으로 윈도우의 기본 색상 사용
+	wcex.hbrBackground = (HBRUSH)(COLOR_BTNFACE + 1);			// 창의 배경으로 윈도우의 기본 색상 사용
 	if (!RegisterClassEx(&wcex)) return 0;						// 실패 시 프로그램 종료
-	/*윈도우 폼*/
+																/*윈도우 폼*/
 	hWnd = CreateWindowEx(0,									//확장가능성
 		szClassName,											//클래스 이름
 		TEXT("Muisc Player"),									//제목
 		WS_POPUP | WS_VISIBLE | WS_SYSMENU | WS_THICKFRAME,										//앱윈도
-		monitor_width -295,											//프로그램이 화면에 표시될 때의
-		monitor_height - 210,											//윈도우 위치 선언
-		295,210,												//사이즈
+		/*monitor_width -295*/0,											//프로그램이 화면에 표시될 때의
+		/*monitor_height - 210*/0,											//윈도우 위치 선언
+		295, 210,												//사이즈
 		HWND_DESKTOP,											//부모 지정 : 바탕화면이 부모
 		NULL,													//메뉴 : 없음
 		hInstance,												//프로그램 인스턴스
